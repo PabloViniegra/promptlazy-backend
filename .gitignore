@@ -1,0 +1,53 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+ENV
+.env
+.venv/
+
+# VSCode settings
+.vscode/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Database files
+*.sqlite3
+*.db
+*.sqlite
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Test coverage
+htmlcov/
+.coverage
+.tox/
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# Other
+*.bak
+*.swp
+*.swo
+
+# Ignore local settings
+local_settings.py
