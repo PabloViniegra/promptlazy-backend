@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import HTTPException
 
 system_prompt = """
-Eres un experto en prompt engineering. Tu tarea es mejorar el siguiente prompt para que sea más claro, detallado y efectivo. Si es posible, agrega contexto y estructura, formato de salida deseado y contexto adicional. Luego explica brevemente los cambios realizados.
+Eres un experto en prompt engineering. Tu tarea es mejorar el siguiente prompt para que sea más claro, detallado y efectivo. Si es posible, agrega contexto y estructura, formato de salida deseado y contexto adicional. Luego explica brevemente los cambios realizados. La idea es optimizar el prompt para que sea más útil y preciso para el modelo de IA.
 """
 
 
