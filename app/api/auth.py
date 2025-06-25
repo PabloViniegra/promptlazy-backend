@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.schemas.auth import LoginRequest, RegisterRequest, Token, TokenRefreshRequest
+from app.schemas.auth import LoginRequest, RegisterRequest, Token, TokenRefreshRequest, AccessTokenOnly
 from app.services.auth_service import (
-    register_user, authenticate_user, create_token_pair
+    register_user, authenticate_user, create_token_pair, create_access_token
 )
 from app.db.session import SessionLocal
 from app.core.security import verify_token
@@ -44,7 +44,7 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     return tokens
 
 
-@router.post("/refresh", response_model=Token)
+@router.post("/refresh", response_model=AccessTokenOnly)
 def refresh(data: TokenRefreshRequest):
     """
     Generates a new pair of access and refresh tokens using a valid refresh token.
@@ -54,8 +54,8 @@ def refresh(data: TokenRefreshRequest):
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
     user_id = payload.get("sub")
-    tokens = create_token_pair(user_id)
-    return tokens
+    access_token = create_access_token({"sub": user_id})
+    return {"access_token": access_token}
 
 
 def get_current_user(
