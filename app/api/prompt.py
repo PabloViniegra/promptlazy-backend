@@ -33,6 +33,15 @@ def list_user_prompts(user: User = Depends(get_current_user), db: Session = Depe
     return {"prompts": prompts}
 
 
+@router.get("/favorites", response_model=PromptListResponse)
+def get_favorites(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Returns a list of all favorite prompts for the authenticated user.
+    """
+    prompts = list_favorite_prompts(db, user)
+    return {"prompts": prompts}
+
+
 @router.get("/{prompt_id}", response_model=PromptResponse)
 def get_prompt(prompt_id: UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
@@ -76,12 +85,3 @@ def toggle_favorite(prompt_id: UUID, favorite: bool = Query(True), user: User = 
     Returns the updated prompt.
     """
     return toggle_favorite_prompt(db, user, prompt_id, favorite)
-
-
-@router.get("/favorites", response_model=PromptListResponse)
-def get_favorites(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """
-    Returns a list of all favorite prompts for the authenticated user.
-    """
-    prompts = list_favorite_prompts(db, user)
-    return {"prompts": prompts}
