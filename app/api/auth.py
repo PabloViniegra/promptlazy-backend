@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.schemas.auth import LoginRequest, RegisterRequest, Token, TokenRefreshRequest, AccessTokenOnly
+from app.schemas.auth import LoginRequest, RegisterRequest, Token, TokenRefreshRequest, AccessTokenOnly, UserUpdateRequest
 from app.services.auth_service import (
-    register_user, authenticate_user, create_token_pair, create_access_token
+    register_user, authenticate_user, create_token_pair, create_access_token, update_user
 )
 from app.db.session import SessionLocal
 from app.core.security import verify_token
@@ -79,8 +79,38 @@ def get_current_user(
 
 
 @router.get("/me")
-def me(user: User = Depends(get_current_user)):
+def get_current_user_profile(user: User = Depends(get_current_user)):
     """
     Returns the profile information of the currently authenticated user.
     """
     return {"id": user.id, "email": user.email, "username": user.username, "full_name": user.full_name}
+
+
+@router.put("/me")
+def update_current_user(
+    update_data: UserUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Updates the profile information of the currently authenticated user.
+
+    - To update password, both 'current_password' and 'new_password' must be provided.
+    - Other fields (username, email, full_name) can be updated independently.
+    - Only provided fields will be updated.
+    """
+    update_dict = update_data.model_dump(exclude_unset=True)
+
+    if not update_dict:
+        return {"id": current_user.id, "email": current_user.email,
+                "username": current_user.username, "full_name": current_user.full_name}
+
+    updated_user = update_user(db, current_user, update_dict)
+
+    return {
+        "id": updated_user.id,
+        "email": updated_user.email,
+        "username": updated_user.username,
+        "full_name": updated_user.full_name,
+        "message": "User updated successfully"
+    }

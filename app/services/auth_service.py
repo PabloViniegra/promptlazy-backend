@@ -59,13 +59,65 @@ def authenticate_user(db: Session, email: str, password: str):
     return user
 
 
+def update_user(db: Session, user: User, update_data: dict):
+    """
+    Updates user information based on the provided data.
+    If updating password, verifies the current password first.
+    Returns the updated user object.
+    Raises HTTPException if:
+    - Current password is required but not provided when updating password
+    - Current password is incorrect
+    - New email is already registered
+    - New username is already taken
+    """
+    if 'new_password' in update_data:
+        if not update_data.get('current_password'):
+            raise HTTPException(
+                status_code=400,
+                detail="Current password is required to change password"
+            )
+        if not verify_password(update_data['current_password'], user.hashed_password):
+            raise HTTPException(
+                status_code=400,
+                detail="Incorrect current password"
+            )
+        user.hashed_password = hash_password(update_data['new_password'])
+        update_data.pop('new_password')
+        update_data.pop('current_password')
+
+    for field, value in update_data.items():
+        if value is not None and hasattr(user, field):
+            setattr(user, field, value)
+
+    try:
+        db.commit()
+        db.refresh(user)
+    except IntegrityError as e:
+        db.rollback()
+        if 'email' in str(e).lower():
+            raise HTTPException(
+                status_code=400,
+                detail="Email already registered"
+            )
+        elif 'username' in str(e).lower():
+            raise HTTPException(
+                status_code=400,
+                detail="Username already taken"
+            )
+        raise HTTPException(status_code=400, detail="Update failed")
+
+    return user
+
+
 def create_token_pair(user_id: UUID):
     """
     Creates a pair of access and refresh tokens for the given user ID.
     Returns a dictionary with 'access_token' and 'refresh_token'.
     """
-    data = {"sub": str(user_id)}
+    access_token = create_access_token({"sub": str(user_id)})
+    refresh_token = create_refresh_token({"sub": str(user_id)})
     return {
-        "access_token": create_access_token(data),
-        "refresh_token": create_refresh_token(data),
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
     }
