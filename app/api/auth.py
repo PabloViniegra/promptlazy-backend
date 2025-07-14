@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.schemas.auth import LoginRequest, RegisterRequest, Token, TokenRefreshRequest, AccessTokenOnly, UserUpdateRequest
 from app.services.auth_service import (
@@ -8,8 +8,12 @@ from app.db.session import SessionLocal
 from app.core.security import verify_token
 from app.models.user import User
 from app.core.security import api_key_scheme
+from app.core.rate_limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+
+AUTH_RATE_LIMIT = "100 per hour"
+REFRESH_RATE_LIMIT = "200 per hour"
 
 
 def get_db():
@@ -21,7 +25,8 @@ def get_db():
 
 
 @router.post("/register", response_model=Token)
-def register(data: RegisterRequest, db: Session = Depends(get_db)):
+@limiter.limit(AUTH_RATE_LIMIT)
+def register(request: Request, data: RegisterRequest, db: Session = Depends(get_db)):
     """
     Registers a new user and returns a pair of access and refresh tokens.
     """
@@ -32,7 +37,8 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(data: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit(AUTH_RATE_LIMIT)
+def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)):
     """
     Authenticates a user and returns a pair of access and refresh tokens.
     Raises HTTPException if credentials are invalid.
@@ -45,7 +51,8 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=AccessTokenOnly)
-def refresh(data: TokenRefreshRequest):
+@limiter.limit(REFRESH_RATE_LIMIT)
+def refresh(request: Request, data: TokenRefreshRequest):
     """
     Generates a new pair of access and refresh tokens using a valid refresh token.
     Raises HTTPException if the refresh token is invalid.

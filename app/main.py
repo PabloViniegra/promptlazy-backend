@@ -1,9 +1,17 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from app.core.rate_limiter import limiter
 from app.api import auth
 from app.api import prompt
 
 app = FastAPI(title="PromptLazy API", version="1.0.0")
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,7 +26,7 @@ app.include_router(prompt.router)
 
 
 @app.get("/")
-def read_root():
+def read_root(request: Request):
     """
     Root endpoint.
     Returns a welcome message for the PromptLazy API.
@@ -39,7 +47,7 @@ def api_options():
 
 
 @app.get("/status")
-def api_status():
+def api_status(request: Request):
     """
     Status endpoint.
     Returns a message indicating that the API is alive and running.

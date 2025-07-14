@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi import Query
 from sqlalchemy.orm import Session
 from app.schemas.prompt import PromptRequest, PromptResponse
@@ -12,8 +12,12 @@ from app.services.prompt_service import (
     list_prompts, get_prompt_by_id, regenerate_prompt, delete_prompt,
     toggle_favorite_prompt, list_favorite_prompts
 )
+from app.core.rate_limiter import limiter
 
 router = APIRouter(prefix="/prompt", tags=["Prompt"])
+
+PROMPT_RATE_LIMIT = "200 per hour"
+PROMPT_WRITE_RATE_LIMIT = "100 per hour"
 
 
 def get_db():
@@ -25,7 +29,8 @@ def get_db():
 
 
 @router.get("/", response_model=PromptListResponse)
-def list_user_prompts(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@limiter.limit(PROMPT_RATE_LIMIT)
+def list_user_prompts(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Returns a list of all prompts created by the authenticated user.
     """
@@ -34,7 +39,8 @@ def list_user_prompts(user: User = Depends(get_current_user), db: Session = Depe
 
 
 @router.get("/favorites", response_model=PromptListResponse)
-def get_favorites(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@limiter.limit(PROMPT_RATE_LIMIT)
+def get_favorites(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Returns a list of all favorite prompts for the authenticated user.
     """
@@ -43,15 +49,17 @@ def get_favorites(user: User = Depends(get_current_user), db: Session = Depends(
 
 
 @router.get("/{prompt_id}", response_model=PromptResponse)
-def get_prompt(prompt_id: UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@limiter.limit(PROMPT_RATE_LIMIT)
+def get_prompt(request: Request, prompt_id: UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Retrieves a specific prompt by its ID for the authenticated user.
     """
     return get_prompt_by_id(db, user, prompt_id)
 
 
-@router.put("/{prompt_id}", response_model=PromptResponse)
-def regenerate(prompt_id: UUID, body: PromptRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@router.post("/{prompt_id}/regenerate", response_model=PromptResponse)
+@limiter.limit(PROMPT_WRITE_RATE_LIMIT)
+def regenerate(request: Request, prompt_id: UUID, body: PromptRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Regenerates an optimized prompt and explanation for a given prompt ID using new text.
     """
@@ -59,7 +67,8 @@ def regenerate(prompt_id: UUID, body: PromptRequest, user: User = Depends(get_cu
 
 
 @router.delete("/{prompt_id}", status_code=204)
-def delete(prompt_id: UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@limiter.limit(PROMPT_WRITE_RATE_LIMIT)
+async def delete(request: Request, prompt_id: UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Deletes a prompt by its ID for the authenticated user.
     """
@@ -68,7 +77,8 @@ def delete(prompt_id: UUID, user: User = Depends(get_current_user), db: Session 
 
 
 @router.post("/improve", response_model=PromptResponse)
-def improve(prompt: PromptRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@limiter.limit(PROMPT_WRITE_RATE_LIMIT)
+def improve(request: Request, prompt: PromptRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Improves a given prompt using AI and returns the optimized prompt and explanation.
     Raises HTTPException if the prompt is empty.
@@ -78,8 +88,9 @@ def improve(prompt: PromptRequest, user: User = Depends(get_current_user), db: S
     return improve_prompt(user, prompt.prompt, db)
 
 
-@router.patch("/{prompt_id}/favorite", response_model=PromptResponse)
-def toggle_favorite(prompt_id: UUID, favorite: bool = Query(True), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@router.post("/{prompt_id}/favorite", response_model=PromptResponse)
+@limiter.limit(PROMPT_WRITE_RATE_LIMIT)
+def toggle_favorite(request: Request, prompt_id: UUID, favorite: bool = Query(True), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Sets or unsets a prompt as favorite for the authenticated user.
     Returns the updated prompt.
